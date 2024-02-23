@@ -2,6 +2,7 @@
 #include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <string>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -47,11 +48,41 @@ int main() {
     char start_point[100];
     char end_point[100];
 
-    std::cout << "Enter start point: ";
-    std::cin.getline(start_point, sizeof(start_point));
+    while (true) {
+        std::cout << "Enter start point: ";
+        std::cin.getline(start_point, sizeof(start_point));
 
-    std::cout << "Enter end point: ";
-    std::cin.getline(end_point, sizeof(end_point));
+        std::cout << "Enter end point: ";
+        std::cin.getline(end_point, sizeof(end_point));
+
+        try {
+            int start_int = std::stoi(start_point);
+            int end_int = std::stoi(end_point);
+
+            if (start_int < 0 || end_int < 0 || start_int >= end_int || start_int > 100000000 || end_int > 100000000) {
+                std::cerr << "Error: Invalid input. ";
+                if (start_int >= end_int) {
+                    std::cerr << "Start point must be less than end point. ";
+                }
+                if (start_int < 0 || end_int < 0) {
+                    std::cerr << "Start and end points must be positive. ";
+                }
+                if (start_int > 100000000 || end_int > 100000000) {
+                    std::cerr << "Start and end points must be less than 10^8. ";
+                }
+                std::cerr << "Please try again." << std::endl;
+            }
+            else {
+                break;
+            }
+        }
+        catch (const std::invalid_argument& e) {
+            std::cerr << "Error: Invalid input. Please enter numeric values." << std::endl;
+        }
+        catch (const std::out_of_range& e) {
+			std::cerr << "Error: Input out of range." << std::endl;
+		}
+    }
 
     send_task(start_point, end_point);
 
