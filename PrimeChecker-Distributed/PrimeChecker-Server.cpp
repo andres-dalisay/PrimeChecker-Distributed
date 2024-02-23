@@ -6,6 +6,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <iomanip>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -53,6 +54,10 @@ void handle_client(SOCKET client_socket) {
 
     std::cout << "Received task from client: " << num1 << num2 << std::endl;
 
+
+    clock_t start, end;
+    start = clock();
+
     // Create threads
     std::vector<std::thread> threads;
     threads.reserve(THREAD_COUNT);
@@ -72,6 +77,10 @@ void handle_client(SOCKET client_socket) {
         thread.join();
     }
 
+    end = clock();
+
+    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
+    std::cout << "Time taken by program is : " << std::fixed << time_taken << std::setprecision(5);
 
     // Process the task and get the result
     const char* result = "Task completed";
