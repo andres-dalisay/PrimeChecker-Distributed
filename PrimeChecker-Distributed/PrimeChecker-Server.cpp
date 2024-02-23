@@ -1,13 +1,28 @@
 // master_server.cpp
 #include <iostream>
 #include <winsock2.h>
+#include <sstream>
+#include <string>
 
 #pragma comment(lib, "ws2_32.lib")
 
 void handle_client(SOCKET client_socket) {
     char buffer[1024] = { 0 };
     recv(client_socket, buffer, sizeof(buffer), 0);
-    std::cout << "Received task from client: " << buffer << std::endl;
+
+    std::string strBuffer(buffer); 
+    std::stringstream ss(strBuffer);
+    std::string token;
+
+
+    getline(ss, token, ',');     // Get the first number before comma
+    int num1 = std::stoi(token); // Convert string to integer
+
+   
+    getline(ss, token);          // Get the second number after comma
+    int num2 = std::stoi(token); // Convert string to integer
+
+    std::cout << "Received task from client: " << num1 << num2 << std::endl;
 
     // Process the task and get the result
     const char* result = "Task completed";
