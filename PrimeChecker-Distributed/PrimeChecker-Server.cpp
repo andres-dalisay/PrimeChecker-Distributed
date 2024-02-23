@@ -5,12 +5,14 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <mutex>
 
 #pragma comment(lib, "ws2_32.lib")
 
 
 #define THREAD_COUNT 16
 
+std::mutex mtx;
 std::vector<int> primes;
 
 bool check_prime(const int& n) {
@@ -26,7 +28,9 @@ void checkPrimeLoop(int start, int end) {
     for (int i = start; i <= end; i++) {
         if (i < 2) continue;
         if (check_prime(i)) {
+            mtx.lock();
             primes.push_back(i);
+            mtx.unlock();
         }
     }
 }
