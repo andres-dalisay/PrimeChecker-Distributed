@@ -4,9 +4,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 
 #pragma comment(lib, "ws2_32.lib")
 
+
+#define THREAD_COUNT 16
 
 std::vector<int> primes;
 
@@ -46,7 +49,25 @@ void handle_client(SOCKET client_socket) {
 
     std::cout << "Received task from client: " << num1 << num2 << std::endl;
 
-    checkPrimeLoop(num1, num2);
+    // Create threads
+    std::vector<std::thread> threads;
+    threads.reserve(THREAD_COUNT);
+
+    int split = num2 / THREAD_COUNT;
+
+    for (int i = 0; i < THREAD_COUNT; i++) {
+		int start = i * split;
+		int end = (i + 1) * split - 1;
+        if (i == THREAD_COUNT - 1) {
+			end = num2;
+		}
+		threads.emplace_back(checkPrimeLoop, start, end);
+	}
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
 
     // Process the task and get the result
     const char* result = "Task completed";
