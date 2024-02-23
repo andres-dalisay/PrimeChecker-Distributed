@@ -81,9 +81,12 @@ void handle_client(SOCKET client_socket) {
 
     double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
     std::cout << "Time taken by program is : " << std::fixed << time_taken << std::setprecision(5);
+    
+    int primesCount = primes.size();
 
     // Process the task and get the result
-    const char* result = "Task completed";
+    char result[1024];
+    sprintf_s(result, "%d", primesCount);
     send(client_socket, result, strlen(result), 0);
 
     closesocket(client_socket);

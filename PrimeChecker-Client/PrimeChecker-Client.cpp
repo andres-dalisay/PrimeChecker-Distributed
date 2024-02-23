@@ -38,7 +38,7 @@ void send_task(const char* start_point, const char* end_point) {
 
     char buffer[1024] = { 0 };
     recv(client_socket, buffer, sizeof(buffer), 0);
-    std::cout << "Result from master server: " << buffer << std::endl;
+    std::cout << "Number of primes: " << buffer << std::endl;
 
     closesocket(client_socket);
     WSACleanup();
