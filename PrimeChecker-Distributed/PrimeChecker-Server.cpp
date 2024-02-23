@@ -3,8 +3,30 @@
 #include <winsock2.h>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #pragma comment(lib, "ws2_32.lib")
+
+
+std::vector<int> primes;
+
+bool check_prime(const int& n) {
+    for (int i = 2; i * i <= n; i++) {
+        if (n % i == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void checkPrimeLoop(int start, int end) {
+    for (int i = start; i <= end; i++) {
+        if (i < 2) continue;
+        if (check_prime(i)) {
+            primes.push_back(i);
+        }
+    }
+}
 
 void handle_client(SOCKET client_socket) {
     char buffer[1024] = { 0 };
@@ -14,15 +36,17 @@ void handle_client(SOCKET client_socket) {
     std::stringstream ss(strBuffer);
     std::string token;
 
-
+                                
     getline(ss, token, ',');     // Get the first number before comma
     int num1 = std::stoi(token); // Convert string to integer
 
-   
+    
     getline(ss, token);          // Get the second number after comma
     int num2 = std::stoi(token); // Convert string to integer
 
     std::cout << "Received task from client: " << num1 << num2 << std::endl;
+
+    checkPrimeLoop(num1, num2);
 
     // Process the task and get the result
     const char* result = "Task completed";
