@@ -13,6 +13,7 @@
 
 
 #define THREAD_COUNT 16
+#define MAX_BUFFER_SIZE 100000000
 
 std::mutex mtx;
 std::vector<int> primes;
@@ -135,24 +136,30 @@ int main() {
 
     while (true) {
 
-        std::vector<char> receivedData(1024);
+        std::vector<char> receivedData(MAX_BUFFER_SIZE);
         int bytesReceived = recv(slave_socket, receivedData.data(), receivedData.size(), 0);
         if (bytesReceived == SOCKET_ERROR) {
 			std::cerr << "Error receiving data" << std::endl;
             continue;
 		}
-        else {
-            receivedData.resize(bytesReceived);
-            std::vector<int> task = deserializeVector(receivedData);
-            std::cout << "Received integers from client: ";
-            for (int num : task) {
-				std::cout << num << " ";
-			}
-            std::cout << std::endl;
 
-            handle_slave(task);
 
-        }
+        receivedData.resize(bytesReceived);
+        std::vector<int> task = deserializeVector(receivedData);
+        std::cout << "Received task from client.";
+
+        handle_slave(task);
+        std::vector<int> numPrimes;
+        numPrimes.push_back(primes.size());
+
+        // print numPrimes
+        std::cout << "Number of primes in slave: " << numPrimes.front() << std::endl;
+        // convert numPrimes to bytes
+        std::vector<char> numBytes = serializeVector(numPrimes);
+        for (int i = 0; i < numBytes.size(); i++) {
+			std::cout << numBytes[i];
+		}
+        send(slave_socket, numBytes.data(), numBytes.size(), 0);
 
         //handle_client(master_socket);
     }

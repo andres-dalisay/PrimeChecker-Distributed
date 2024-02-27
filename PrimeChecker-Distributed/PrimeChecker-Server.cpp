@@ -11,6 +11,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #define THREAD_COUNT 16
+#define MAX_BUFFER_SIZE 100000000
 
 std::mutex mtx;
 std::vector<int> primes;
@@ -218,20 +219,30 @@ int main() {
             }
 		}
 
+        std::cout << "Master task size: " << master_task.size() << std::endl;
+        std::cout << "Slave task size: " << slave_task.size() << std::endl;
+
         std::vector<char> slave_task_bytes = serializeVector(slave_task);
+        std::cout << slave_task_bytes.size() << std::endl;
         send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
         std::cout << "Sent task to slave server" << std::endl;
 
         handle_master(master_task);
+        // print primes.size()
+        std::cout << "Number of primes in master: " << primes.size() << std::endl;
         //send(client_socket, serializeVector(primes).data(), serializeVector(primes).size(), 0);
         //handle_slave(slave_task);
         
 
         // Process the task and get the result
-        int primesCount = primes.size();
+        std::vector<char> slaveResults(1024);
+        int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
+        std::vector<int> slaveCount = deserializeVector(slaveResults);
+        int primesCount = primes.size() + slaveCount.front();
+        std::cout << "Number of primes: " << primesCount << std::endl;
         char result[1024];
         sprintf_s(result, "%d", primesCount);
-        //send(client_socket, result, strlen(result), 0);
+        send(client_socket, result, strlen(result), 0);
 
         closesocket(client_socket);
 
