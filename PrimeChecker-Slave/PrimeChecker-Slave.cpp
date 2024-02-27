@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <iomanip>
+#include <ws2tcpip.h>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -126,45 +127,57 @@ int main() {
         return -1;
     }
 
-    SOCKET server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (server_socket == INVALID_SOCKET) {
+    SOCKET slave_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (slave_socket == INVALID_SOCKET) {
         std::cerr << "Error creating socket" << std::endl;
         WSACleanup();
         return -1;
     }
 
-    sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    server_address.sin_port = htons(5000);
+    sockaddr_in master_address;
+    master_address.sin_family = AF_INET;
+    master_address.sin_addr.s_addr = INADDR_ANY;
+    master_address.sin_port = htons(5001);
+    inet_pton(AF_INET, "127.0.0.1", &master_address.sin_addr);
 
-    if (bind(server_socket, reinterpret_cast<SOCKADDR*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
+    if (connect(slave_socket, reinterpret_cast<SOCKADDR*>(&master_address), sizeof(master_address)) == SOCKET_ERROR) {
         std::cerr << "Error binding socket" << std::endl;
-        closesocket(server_socket);
+        closesocket(slave_socket);
         WSACleanup();
         return -1;
     }
 
-    if (listen(server_socket, 5) == SOCKET_ERROR) {
-        std::cerr << "Error listening on socket" << std::endl;
-        closesocket(server_socket);
-        WSACleanup();
-        return -1;
-    }
+    //if (listen(server_socket, 5) == SOCKET_ERROR) {
+    //    std::cerr << "Error listening on socket" << std::endl;
+    //    closesocket(server_socket);
+    //    WSACleanup();
+    //    return -1;
+    //}
 
-    std::cout << "Master server is running..." << std::endl;
+    std::cout << "Slave server is running..." << std::endl;
 
     while (true) {
-        SOCKET client_socket = accept(server_socket, NULL, NULL);
-        if (client_socket == INVALID_SOCKET) {
-            std::cerr << "Error accepting connection" << std::endl;
+
+        std::vector<char> receivedData(1024);
+        int bytesReceived = recv(slave_socket, receivedData.data(), receivedData.size(), 0);
+        if (bytesReceived == SOCKET_ERROR) {
+			std::cerr << "Error receiving data" << std::endl;
             continue;
+		}
+        else {
+            receivedData.resize(bytesReceived);
+            std::vector<int> task = deserializeVector(receivedData);
+            std::cout << "Received integers from client: ";
+            for (int num : task) {
+				std::cout << num << " ";
+			}
+            std::cout << std::endl;
         }
 
-        handle_client(client_socket);
+        //handle_client(master_socket);
     }
 
-    closesocket(server_socket);
+    closesocket(slave_socket);
     WSACleanup();
     return 0;
 }

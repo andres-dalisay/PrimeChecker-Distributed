@@ -10,7 +10,6 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-
 #define THREAD_COUNT 16
 
 std::mutex mtx;
@@ -102,40 +101,82 @@ int main() {
         return -1;
     }
 
-    SOCKET server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (server_socket == INVALID_SOCKET) {
-        std::cerr << "Error creating socket" << std::endl;
+    // Create a socket for clients
+    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cout << "Client socket creation failed." << std::endl;
         WSACleanup();
-        return -1;
+        return 1;
     }
 
-    sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    server_address.sin_port = htons(5000);
-
-    if (bind(server_socket, reinterpret_cast<SOCKADDR*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
-        std::cerr << "Error binding socket" << std::endl;
-        closesocket(server_socket);
+    // Create a socket for slave servers
+    SOCKET slaveSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (slaveSocket == INVALID_SOCKET) {
+        std::cout << "Slave socket creation failed." << std::endl;
+        closesocket(clientSocket);
         WSACleanup();
-        return -1;
+        return 1;
     }
 
-    if (listen(server_socket, 5) == SOCKET_ERROR) {
-        std::cerr << "Error listening on socket" << std::endl;
-        closesocket(server_socket);
+    // Bind the client socket to an address and port
+    sockaddr_in clientAddr;
+    clientAddr.sin_family = AF_INET;
+    clientAddr.sin_port = htons(5000); // Port number
+    clientAddr.sin_addr.s_addr = INADDR_ANY; // Accept connections from any address
+
+    if (bind(clientSocket, reinterpret_cast<sockaddr*>(&clientAddr), sizeof(clientAddr)) == SOCKET_ERROR) {
+        std::cout << "Client socket bind failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
         WSACleanup();
-        return -1;
+        return 1;
+    }
+
+    // Bind the slave socket to an address and port
+    sockaddr_in slaveAddr;
+    slaveAddr.sin_family = AF_INET;
+    slaveAddr.sin_port = htons(5001); // Port number for slave connections
+    slaveAddr.sin_addr.s_addr = INADDR_ANY; // Accept connections from any address
+
+    if (bind(slaveSocket, reinterpret_cast<sockaddr*>(&slaveAddr), sizeof(slaveAddr)) == SOCKET_ERROR) {
+        std::cout << "Slave socket bind failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Listen for incoming connections on the client socket
+    if (listen(clientSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cout << "Client socket listen failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Listen for incoming connections on the slave socket
+    if (listen(slaveSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cout << "Slave socket listen failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
     }
 
     std::cout << "Master server is running..." << std::endl;
 
     while (true) {
-        SOCKET client_socket = accept(server_socket, NULL, NULL);
+        SOCKET client_socket = accept(clientSocket, NULL, NULL);
         if (client_socket == INVALID_SOCKET) {
             std::cerr << "Error accepting connection" << std::endl;
             continue;
         }
+        SOCKET slave_socket = accept(slaveSocket, NULL, NULL);
+        if (slave_socket == INVALID_SOCKET) {
+			std::cerr << "Error accepting connection" << std::endl;
+			continue;
+		}
         
         //RECEIVE TASK
         char buffer[1024] = { 0 };
@@ -161,16 +202,21 @@ int main() {
 
         // create a for loop to iterate through the range of numbers
         for (int i = num1; i <= num2; i++) {
-            /*if (i % 2) {
+            if (i % 2) {
 				master_task.push_back(i);
             }
             else {
                 slave_task.push_back(i);
-            }*/
-            master_task.push_back(i);
+            }
+            //master_task.push_back(i);
 		}
 
+        std::vector<char> slave_task_bytes = serializeVector(slave_task);
+        send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
+        std::cout << "Sent task to slave server" << std::endl;
+
         handle_master(master_task);
+        send(client_socket, serializeVector(primes).data(), serializeVector(primes).size(), 0);
         //handle_slave(slave_task);
         
 
@@ -178,14 +224,15 @@ int main() {
         int primesCount = primes.size();
         char result[1024];
         sprintf_s(result, "%d", primesCount);
-        send(client_socket, result, strlen(result), 0);
+        //send(client_socket, result, strlen(result), 0);
 
         closesocket(client_socket);
 
         
     }
 
-    closesocket(server_socket);
+    closesocket(clientSocket);
+    closesocket(slaveSocket);
     WSACleanup();
     return 0;
 }
