@@ -25,6 +25,33 @@ bool check_prime(const int& n) {
     return true;
 }
 
+// Function to serialize a vector of integers into a byte stream
+std::vector<char> serializeVector(const std::vector<int>& vec) {
+    std::vector<char> bytes;
+    // Assuming integers are 4 bytes each
+    for (int num : vec) {
+        // Convert each integer to bytes
+        char* numBytes = reinterpret_cast<char*>(&num);
+        for (size_t i = 0; i < sizeof(num); ++i) {
+            bytes.push_back(numBytes[i]);
+        }
+    }
+    return bytes;
+}
+
+// Function to deserialize a byte stream into a vector of integers
+std::vector<int> deserializeVector(const std::vector<char>& bytes) {
+    std::vector<int> vec;
+    // Assuming integers are 4 bytes each
+    for (size_t i = 0; i < bytes.size(); i += sizeof(int)) {
+        int num;
+        // Convert bytes back to integer
+        memcpy(&num, &bytes[i], sizeof(int));
+        vec.push_back(num);
+    }
+    return vec;
+}
+
 void checkPrimeLoop(std::vector<int> checkArray, int start, int end) {
     for (int i = start; i <= end; i++) {
         if (checkArray[i] < 2) continue;
