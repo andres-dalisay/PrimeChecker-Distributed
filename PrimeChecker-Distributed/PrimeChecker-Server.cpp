@@ -71,8 +71,9 @@ void handle_master(std::vector<int> master_task) {
     threads.reserve(THREAD_COUNT);
 
     int split = master_task.size() / THREAD_COUNT;
+    if(split == 0) split = 1;
 
-    for (int i = 0; i < THREAD_COUNT; i++) {
+    for (int i = 0; i < THREAD_COUNT && i < master_task.size(); i++) {
         int start = i * split;
         int end = (i + 1) * split - 1;
 
@@ -216,7 +217,7 @@ int main() {
         std::cout << "Sent task to slave server" << std::endl;
 
         handle_master(master_task);
-        send(client_socket, serializeVector(primes).data(), serializeVector(primes).size(), 0);
+        //send(client_socket, serializeVector(primes).data(), serializeVector(primes).size(), 0);
         //handle_slave(slave_task);
         
 

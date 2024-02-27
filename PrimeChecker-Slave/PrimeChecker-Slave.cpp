@@ -73,8 +73,9 @@ void handle_slave(std::vector<int> slave_task) {
     threads_slave.reserve(THREAD_COUNT);
 
     int split = slave_task.size() / THREAD_COUNT;
+    if (split == 0) split = 1;
 
-    for (int i = 0; i < THREAD_COUNT; i++) {
+    for (int i = 0; i < THREAD_COUNT && i < slave_task.size(); i++) {
         int start = i * split;
         int end = (i + 1) * split - 1;
 
