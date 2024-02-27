@@ -25,12 +25,12 @@ bool check_prime(const int& n) {
     return true;
 }
 
-void checkPrimeLoop(int start, int end) {
+void checkPrimeLoop(std::vector<int> checkArray, int start, int end) {
     for (int i = start; i <= end; i++) {
-        if (i < 2) continue;
-        if (check_prime(i)) {
+        if (checkArray[i] < 2) continue;
+        if (check_prime(checkArray[i])) {
             mtx.lock();
-            primes.push_back(i);
+            primes.push_back(checkArray[i]);
             mtx.unlock();
         }
     }
@@ -54,6 +54,16 @@ void handle_client(SOCKET client_socket) {
 
     std::cout << "Received task from client: " << num1 << num2 << std::endl;
 
+    std::vector<int> task;
+
+    for (int i = num1; i <= num2; i++) {
+        if (i == 2) {
+            task.push_back(i);
+        }
+        if (i % 2) { //odd
+            task.push_back(i);
+        }
+    }
 
     clock_t start, end;
     start = clock();
@@ -62,16 +72,19 @@ void handle_client(SOCKET client_socket) {
     std::vector<std::thread> threads;
     threads.reserve(THREAD_COUNT);
 
-    int split = num2 / THREAD_COUNT;
+    int split = task.size() / THREAD_COUNT;
+    if (split == 0) split = 1;
 
-    for (int i = 0; i < THREAD_COUNT; i++) {
-		int start = i * split;
-		int end = (i + 1) * split - 1;
+    for (int i = 0; i < THREAD_COUNT && i < task.size(); i++) {
+        int start = i * split;
+        int end = (i + 1) * split - 1;
+
         if (i == THREAD_COUNT - 1) {
-			end = num2;
-		}
-		threads.emplace_back(checkPrimeLoop, start, end);
-	}
+            end = task.size() - 1;
+        }
+
+        threads.emplace_back(checkPrimeLoop, task, start, end);
+    }
 
     for (auto& thread : threads) {
         thread.join();
