@@ -200,16 +200,26 @@ int main() {
         //SPLIT TASK
         std::vector<int> master_task;
         std::vector<int> slave_task;
+        if (num1 == 2) {
+            master_task.push_back(num1);
+        }
+        if (num2 == 2) {
+            master_task.push_back(num2);
+        }
+
+        bool flip = true;
 
         // create a for loop to iterate through the range of numbers
         for (int i = num1; i <= num2; i++) {
-            if (i % 2) {
-				master_task.push_back(i);
+            if (i % 2) { //odd
+                if (flip) {
+                    master_task.push_back(i);
+                }
+                else {
+					slave_task.push_back(i);
+				}
+                flip = !flip;
             }
-            else {
-                slave_task.push_back(i);
-            }
-            //master_task.push_back(i);
 		}
 
         std::vector<char> slave_task_bytes = serializeVector(slave_task);
