@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -76,6 +77,8 @@ void send_task(const char* start_point, const char* end_point) {
 int main() {
     char start_point[100];
     char end_point[100];
+    clock_t start, end;
+    
 
     while (true) {
         std::cout << "Enter start point: ";
@@ -112,8 +115,12 @@ int main() {
 			std::cerr << "Error: Input out of range." << std::endl;
 		}
     }
-
+    start = clock();
     send_task(start_point, end_point);
+    end = clock();
+
+    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
+    std::cout << "Time taken by program is : " << std::fixed << time_taken << std::setprecision(5);
 
     return 0;
 }

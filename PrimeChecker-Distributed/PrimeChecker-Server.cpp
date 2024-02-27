@@ -10,7 +10,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define THREAD_COUNT 16
+#define THREAD_COUNT std::thread::hardware_concurrency()
 #define MAX_BUFFER_SIZE 100000000
 
 std::mutex mtx;
@@ -64,9 +64,6 @@ void checkPrimeLoop(std::vector<int> checkArray, int start, int end) {
 }
 
 void handle_master(std::vector<int> master_task) {
-    clock_t start, end;
-    start = clock();
-
     // Create threads
     std::vector<std::thread> threads;
     threads.reserve(THREAD_COUNT);
@@ -88,11 +85,6 @@ void handle_master(std::vector<int> master_task) {
     for (auto& thread : threads) {
         thread.join();
     }
-
-    end = clock();
-
-    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
-    std::cout << "Time taken by program is : " << std::fixed << time_taken << std::setprecision(5);
     
 }
 
@@ -219,11 +211,7 @@ int main() {
             }
 		}
 
-        std::cout << "Master task size: " << master_task.size() << std::endl;
-        std::cout << "Slave task size: " << slave_task.size() << std::endl;
-
         std::vector<char> slave_task_bytes = serializeVector(slave_task);
-        std::cout << slave_task_bytes.size() << std::endl;
         send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
         std::cout << "Sent task to slave server" << std::endl;
 
@@ -239,7 +227,6 @@ int main() {
         int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
         std::vector<int> slaveCount = deserializeVector(slaveResults);
         int primesCount = primes.size() + slaveCount.front();
-        std::cout << "Number of primes: " << primesCount << std::endl;
         char result[1024];
         sprintf_s(result, "%d", primesCount);
         send(client_socket, result, strlen(result), 0);

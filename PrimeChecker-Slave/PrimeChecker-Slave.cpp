@@ -12,7 +12,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 
-#define THREAD_COUNT 16
+#define THREAD_COUNT std::thread::hardware_concurrency()
 #define MAX_BUFFER_SIZE 100000000
 
 std::mutex mtx;
@@ -66,9 +66,6 @@ std::vector<int> deserializeVector(const std::vector<char>& bytes) {
 }
 
 void handle_slave(std::vector<int> slave_task) {
-    clock_t start, end;
-    start = clock();
-
     // Create threads
     std::vector<std::thread> threads_slave;
     threads_slave.reserve(THREAD_COUNT);
@@ -90,12 +87,6 @@ void handle_slave(std::vector<int> slave_task) {
     for (auto& thread : threads_slave) {
         thread.join();
     }
-
-    end = clock();
-
-    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
-    std::cout << "Time taken by program is : " << std::fixed << time_taken << std::setprecision(5);
-
 }
 
 int main() {
@@ -156,9 +147,6 @@ int main() {
         std::cout << "Number of primes in slave: " << numPrimes.front() << std::endl;
         // convert numPrimes to bytes
         std::vector<char> numBytes = serializeVector(numPrimes);
-        for (int i = 0; i < numBytes.size(); i++) {
-			std::cout << numBytes[i];
-		}
         send(slave_socket, numBytes.data(), numBytes.size(), 0);
 
         //handle_client(master_socket);
