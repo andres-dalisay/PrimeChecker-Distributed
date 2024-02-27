@@ -10,6 +10,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+#define USE_SLAVE false
 #define THREAD_COUNT std::thread::hardware_concurrency()
 #define MAX_BUFFER_SIZE 100000000
 
@@ -89,6 +90,8 @@ void handle_master(std::vector<int> master_task) {
 }
 
 int main() {
+    bool slaveOnline = USE_SLAVE;
+
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Error initializing Winsock" << std::endl;
@@ -166,11 +169,15 @@ int main() {
             std::cerr << "Error accepting connection" << std::endl;
             continue;
         }
-        SOCKET slave_socket = accept(slaveSocket, NULL, NULL);
-        if (slave_socket == INVALID_SOCKET) {
-			std::cerr << "Error accepting connection" << std::endl;
-			continue;
-		}
+        SOCKET slave_socket;
+        if (slaveOnline) {
+            slave_socket = accept(slaveSocket, NULL, NULL);
+            if (slave_socket == INVALID_SOCKET) {
+                std::cerr << "Error accepting connection" << std::endl;
+                /*continue;*/
+            }
+        }
+        
         
         //RECEIVE TASK
         char buffer[1024] = { 0 };
@@ -192,48 +199,57 @@ int main() {
 
         //SPLIT TASK
         std::vector<int> master_task;
-        std::vector<int> slave_task;
-        bool flip = true;
 
-        // create a for loop to iterate through the range of numbers
-        for (int i = num1; i <= num2; i++) {
-            if (i == 2) {
-                master_task.push_back(i);
-            }
-            if (i % 2) { //odd
-                if (flip) {
+        if (slaveOnline) {
+            std::vector<int> slave_task;
+            bool flip = true;
+
+            // create a for loop to iterate through the range of numbers
+            for (int i = num1; i <= num2; i++) {
+                if (i == 2) {
                     master_task.push_back(i);
                 }
-                else {
-					slave_task.push_back(i);
-				}
-                flip = !flip;
+                if (i % 2) { //odd
+                    if (flip) {
+                        master_task.push_back(i);
+                    }
+                    else {
+                        slave_task.push_back(i);
+                    }
+                    flip = !flip;
+                }
             }
+
+            std::vector<char> slave_task_bytes = serializeVector(slave_task);
+            send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
+            std::cout << "Sent task to slave server" << std::endl;
+        }
+        else {
+            for (int i = num1; i <= num2; i++) {
+                if (i == 2) {
+                    master_task.push_back(i);
+                }
+                if (i % 2) { //odd
+                    master_task.push_back(i);
+                }
+			}
 		}
 
-        std::vector<char> slave_task_bytes = serializeVector(slave_task);
-        send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
-        std::cout << "Sent task to slave server" << std::endl;
-
         handle_master(master_task);
-        // print primes.size()
         std::cout << "Number of primes in master: " << primes.size() << std::endl;
-        //send(client_socket, serializeVector(primes).data(), serializeVector(primes).size(), 0);
-        //handle_slave(slave_task);
         
-
+        int primesCount = primes.size();
         // Process the task and get the result
-        std::vector<char> slaveResults(1024);
-        int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
-        std::vector<int> slaveCount = deserializeVector(slaveResults);
-        int primesCount = primes.size() + slaveCount.front();
+        if (slaveOnline) {
+            std::vector<char> slaveResults(1024);
+            int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
+            std::vector<int> slaveCount = deserializeVector(slaveResults);
+            primesCount = primesCount + slaveCount.front();
+        }
+        
         char result[1024];
         sprintf_s(result, "%d", primesCount);
-        send(client_socket, result, strlen(result), 0);
-
-        closesocket(client_socket);
-
-        
+        send(client_socket, result, strlen(result), 0);       
     }
 
     closesocket(clientSocket);
