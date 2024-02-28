@@ -140,14 +140,11 @@ int main() {
         std::cout << "Received task from client.";
 
         handle_slave(task);
-        std::vector<int> numPrimes;
-        numPrimes.push_back(primes.size());
+        std::vector<char> serializedPrimes = serializeVector(primes);
 
         // print numPrimes
-        std::cout << "Number of primes in slave: " << numPrimes.front() << std::endl;
-        // convert numPrimes to bytes
-        std::vector<char> numBytes = serializeVector(numPrimes);
-        send(slave_socket, numBytes.data(), numBytes.size(), 0);
+        std::cout << "Number of primes in slave: " << primes.size() << std::endl;
+        send(slave_socket, serializedPrimes.data(), serializedPrimes.size(), 0);
 
         //handle_client(master_socket);
     }

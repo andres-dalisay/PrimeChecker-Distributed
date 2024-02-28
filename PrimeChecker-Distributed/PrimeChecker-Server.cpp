@@ -10,7 +10,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define USE_SLAVE false
+#define USE_SLAVE true
 #define THREAD_COUNT std::thread::hardware_concurrency()
 #define MAX_BUFFER_SIZE 100000000
 
@@ -241,15 +241,17 @@ int main() {
         int primesCount = primes.size();
         // Process the task and get the result
         if (slaveOnline) {
-            std::vector<char> slaveResults(1024);
+            std::vector<char> slaveResults(100000000);
             int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
-            std::vector<int> slaveCount = deserializeVector(slaveResults);
-            primesCount = primesCount + slaveCount.front();
+            slaveResults.resize(bufferBytes);
+            std::vector<int> slavePrimes = deserializeVector(slaveResults);
+            primes.insert(primes.end(), slavePrimes.begin(), slavePrimes.end());
         }
+
         
-        char result[1024];
-        sprintf_s(result, "%d", primesCount);
-        send(client_socket, result, strlen(result), 0);       
+        
+        std::vector<char> resultBytes = serializeVector(primes);
+        send(client_socket, resultBytes.data(), resultBytes.size(), 0);
     }
 
     closesocket(clientSocket);
