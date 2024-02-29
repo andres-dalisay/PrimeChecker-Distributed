@@ -12,6 +12,7 @@
 
 #define SORT_ARRAY true
 #define DISPLAY_ARRAY true
+#define MASTER_SERVER_IP "127.0.0.1"
 
 // Function to serialize a vector of integers into a byte stream
 std::vector<char> serializeVector(const std::vector<int>& vec) {
@@ -60,7 +61,7 @@ void send_task(const char* start_point, const char* end_point) {
     sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(5000);
-    inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr);
+    inet_pton(AF_INET, MASTER_SERVER_IP, &server_address.sin_addr);
 
     if (connect(client_socket, reinterpret_cast<SOCKADDR*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
         std::cerr << "Error connecting to server" << std::endl;

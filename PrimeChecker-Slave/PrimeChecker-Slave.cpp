@@ -10,6 +10,7 @@
 #include <ws2tcpip.h>
 
 #pragma comment(lib, "ws2_32.lib")
+#define MASTER_SERVER_IP "127.0.0.1"
 
 
 #define THREAD_COUNT std::thread::hardware_concurrency()
@@ -107,7 +108,7 @@ int main() {
     master_address.sin_family = AF_INET;
     master_address.sin_addr.s_addr = INADDR_ANY;
     master_address.sin_port = htons(5001);
-    inet_pton(AF_INET, "127.0.0.1", &master_address.sin_addr);
+    inet_pton(AF_INET, MASTER_SERVER_IP, &master_address.sin_addr);
 
     if (connect(slave_socket, reinterpret_cast<SOCKADDR*>(&master_address), sizeof(master_address)) == SOCKET_ERROR) {
         std::cerr << "Error binding socket" << std::endl;
