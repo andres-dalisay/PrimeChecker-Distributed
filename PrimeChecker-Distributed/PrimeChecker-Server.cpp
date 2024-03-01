@@ -1,19 +1,92 @@
 // master_server.cpp
 #include <iostream>
 #include <winsock2.h>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <iomanip>
 
 #pragma comment(lib, "ws2_32.lib")
 
-void handle_client(SOCKET client_socket) {
-    char buffer[1024] = { 0 };
-    recv(client_socket, buffer, sizeof(buffer), 0);
-    std::cout << "Received task from client: " << buffer << std::endl;
+#define USE_SLAVE true
+#define THREAD_COUNT 16
+#define MAX_BUFFER_SIZE 100000000
 
-    // Process the task and get the result
-    const char* result = "Task completed";
-    send(client_socket, result, strlen(result), 0);
+std::mutex mtx;
+std::vector<int> primes;
 
-    closesocket(client_socket);
+bool check_prime(const int& n) {
+    for (int i = 2; i * i <= n; i++) {
+        if (n % i == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Function to serialize a vector of integers into a byte stream
+std::vector<char> serializeVector(const std::vector<int>& vec) {
+    std::vector<char> bytes;
+    // Assuming integers are 4 bytes each
+    for (int num : vec) {
+        // Convert each integer to bytes
+        char* numBytes = reinterpret_cast<char*>(&num);
+        for (size_t i = 0; i < sizeof(num); ++i) {
+            bytes.push_back(numBytes[i]);
+        }
+    }
+    return bytes;
+}
+
+// Function to deserialize a byte stream into a vector of integers
+std::vector<int> deserializeVector(const std::vector<char>& bytes) {
+    std::vector<int> vec;
+    // Assuming integers are 4 bytes each
+    for (size_t i = 0; i < bytes.size(); i += sizeof(int)) {
+        int num;
+        // Convert bytes back to integer
+        memcpy(&num, &bytes[i], sizeof(int));
+        vec.push_back(num);
+    }
+    return vec;
+}
+
+void checkPrimeLoop(std::vector<int> checkArray, int start, int end) {
+    for (int i = start; i <= end; i++) {
+        if (checkArray[i] < 2) continue;
+        if (check_prime(checkArray[i])) {
+            mtx.lock();
+            primes.push_back(checkArray[i]);
+            mtx.unlock();
+        }
+    }
+}
+
+void handle_master(std::vector<int> master_task) {
+    // Create threads
+    std::vector<std::thread> threads;
+    threads.reserve(THREAD_COUNT);
+
+    int split = master_task.size() / THREAD_COUNT;
+    if(split == 0) split = 1;
+
+    for (int i = 0; i < THREAD_COUNT && i < master_task.size(); i++) {
+        int start = i * split;
+        int end = (i + 1) * split - 1;
+
+        if (i == THREAD_COUNT - 1) {
+			end = master_task.size() - 1;
+		}
+
+		threads.emplace_back(checkPrimeLoop, master_task, start, end);
+	}
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
 }
 
 int main() {
@@ -23,45 +96,164 @@ int main() {
         return -1;
     }
 
-    SOCKET server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (server_socket == INVALID_SOCKET) {
-        std::cerr << "Error creating socket" << std::endl;
+    // Create a socket for clients
+    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cout << "Client socket creation failed." << std::endl;
         WSACleanup();
-        return -1;
+        return 1;
     }
 
-    sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    server_address.sin_port = htons(5000);
-
-    if (bind(server_socket, reinterpret_cast<SOCKADDR*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
-        std::cerr << "Error binding socket" << std::endl;
-        closesocket(server_socket);
+    // Create a socket for slave servers
+    SOCKET slaveSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (slaveSocket == INVALID_SOCKET) {
+        std::cout << "Slave socket creation failed." << std::endl;
+        closesocket(clientSocket);
         WSACleanup();
-        return -1;
+        return 1;
     }
 
-    if (listen(server_socket, 5) == SOCKET_ERROR) {
-        std::cerr << "Error listening on socket" << std::endl;
-        closesocket(server_socket);
+    // Bind the client socket to an address and port
+    sockaddr_in clientAddr;
+    clientAddr.sin_family = AF_INET;
+    clientAddr.sin_port = htons(5000); // Port number
+    clientAddr.sin_addr.s_addr = INADDR_ANY; // Accept connections from any address
+
+    if (bind(clientSocket, reinterpret_cast<sockaddr*>(&clientAddr), sizeof(clientAddr)) == SOCKET_ERROR) {
+        std::cout << "Client socket bind failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
         WSACleanup();
-        return -1;
+        return 1;
+    }
+
+    // Bind the slave socket to an address and port
+    sockaddr_in slaveAddr;
+    slaveAddr.sin_family = AF_INET;
+    slaveAddr.sin_port = htons(5001); // Port number for slave connections
+    slaveAddr.sin_addr.s_addr = INADDR_ANY; // Accept connections from any address
+
+    if (bind(slaveSocket, reinterpret_cast<sockaddr*>(&slaveAddr), sizeof(slaveAddr)) == SOCKET_ERROR) {
+        std::cout << "Slave socket bind failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Listen for incoming connections on the client socket
+    if (listen(clientSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cout << "Client socket listen failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Listen for incoming connections on the slave socket
+    if (listen(slaveSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cout << "Slave socket listen failed." << std::endl;
+        closesocket(clientSocket);
+        closesocket(slaveSocket);
+        WSACleanup();
+        return 1;
     }
 
     std::cout << "Master server is running..." << std::endl;
 
     while (true) {
-        SOCKET client_socket = accept(server_socket, NULL, NULL);
+        SOCKET client_socket = accept(clientSocket, NULL, NULL);
         if (client_socket == INVALID_SOCKET) {
             std::cerr << "Error accepting connection" << std::endl;
             continue;
         }
+        SOCKET slave_socket;
+        if (USE_SLAVE) {
+            slave_socket = accept(slaveSocket, NULL, NULL);
+            if (slave_socket == INVALID_SOCKET) {
+                std::cerr << "Error accepting connection" << std::endl;
+                /*continue;*/
+            }
+        }
+        
+        
+        //RECEIVE TASK
+        char buffer[1024] = { 0 };
+        recv(client_socket, buffer, sizeof(buffer), 0);
 
-        handle_client(client_socket);
+        std::string strBuffer(buffer);
+        std::stringstream ss(strBuffer);
+        std::string token;
+
+
+        getline(ss, token, ',');     // Get the first number before comma
+        int num1 = std::stoi(token); // Convert string to integer
+
+
+        getline(ss, token);          // Get the second number after comma
+        int num2 = std::stoi(token); // Convert string to integer
+
+        std::cout << "Received task from client: " << num1 << num2 << std::endl;
+
+        //SPLIT TASK
+        std::vector<int> master_task;
+
+        if (USE_SLAVE) {
+            std::vector<int> slave_task;
+            bool flip = true;
+
+            // create a for loop to iterate through the range of numbers
+            for (int i = num1; i <= num2; i++) {
+                if (i == 2) {
+                    master_task.push_back(i);
+                }
+                if (i % 2) { //odd
+                    if (flip) {
+                        master_task.push_back(i);
+                    }
+                    else {
+                        slave_task.push_back(i);
+                    }
+                    flip = !flip;
+                }
+            }
+
+            std::vector<char> slave_task_bytes = serializeVector(slave_task);
+            send(slave_socket, slave_task_bytes.data(), slave_task_bytes.size(), 0);
+            std::cout << "Sent task to slave server" << std::endl;
+        }
+        else {
+            for (int i = num1; i <= num2; i++) {
+                if (i == 2) {
+                    master_task.push_back(i);
+                }
+                if (i % 2) { //odd
+                    master_task.push_back(i);
+                }
+			}
+		}
+
+        handle_master(master_task);
+        std::cout << "Number of primes in master: " << primes.size() << std::endl;
+        
+        int primesCount = primes.size();
+        // Process the task and get the result
+        if (USE_SLAVE) {
+            std::vector<char> slaveResults(100000000);
+            int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
+            slaveResults.resize(bufferBytes);
+            std::vector<int> slavePrimes = deserializeVector(slaveResults);
+            primes.insert(primes.end(), slavePrimes.begin(), slavePrimes.end());
+        }
+
+        
+        
+        std::vector<char> resultBytes = serializeVector(primes);
+        send(client_socket, resultBytes.data(), resultBytes.size(), 0);
     }
 
-    closesocket(server_socket);
+    closesocket(clientSocket);
+    closesocket(slaveSocket);
     WSACleanup();
     return 0;
 }
