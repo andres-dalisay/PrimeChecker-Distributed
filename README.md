@@ -12,3 +12,6 @@ This is a distributed version of the PrimeChecker project made for STDISCM Progr
 - Set the `MASTER_SERVER_IP` in both the Slave and Client to the IPv4 address of the machine running the PrimeChecker-Server.
 - You can set the `THREAD_COUNT` and `MAX_BUFFER_SIZE` in both the Server and Slave to your desired number of threads and input limit respectively.
 - The Client has the options `DISPLAY_ARRAY` and `SORT_ARRAY` to validate the contents of the resulting primes vector.
+
+## Disclaimer
+- Currently, the project can only run once. If you want to run the project again, you have to restart all three projects.
