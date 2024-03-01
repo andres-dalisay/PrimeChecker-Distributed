@@ -117,38 +117,28 @@ int main() {
         return -1;
     }
 
-    //if (listen(server_socket, 5) == SOCKET_ERROR) {
-    //    std::cerr << "Error listening on socket" << std::endl;
-    //    closesocket(server_socket);
-    //    WSACleanup();
-    //    return -1;
-    //}
-
     std::cout << "Slave server is running..." << std::endl;
 
-    while (true) {
-
-        std::vector<char> receivedData(MAX_BUFFER_SIZE);
-        int bytesReceived = recv(slave_socket, receivedData.data(), receivedData.size(), 0);
-        if (bytesReceived == SOCKET_ERROR) {
-			std::cerr << "Error receiving data" << std::endl;
-            continue;
-		}
+    std::vector<char> receivedData(MAX_BUFFER_SIZE);
+    int bytesReceived = recv(slave_socket, receivedData.data(), receivedData.size(), 0);
+    if (bytesReceived == SOCKET_ERROR) {
+		std::cerr << "Error receiving data" << std::endl;
+        /*continue;*/
+	}
 
 
-        receivedData.resize(bytesReceived);
-        std::vector<int> task = deserializeVector(receivedData);
-        std::cout << "Received task from client.";
+    receivedData.resize(bytesReceived);
+    std::vector<int> task = deserializeVector(receivedData);
+    std::cout << "Received task from client.";
 
-        handle_slave(task);
-        std::vector<char> serializedPrimes = serializeVector(primes);
+    handle_slave(task);
+    std::vector<char> serializedPrimes = serializeVector(primes);
 
-        // print numPrimes
-        std::cout << "Number of primes in slave: " << primes.size() << std::endl;
-        send(slave_socket, serializedPrimes.data(), serializedPrimes.size(), 0);
+    // print numPrimes
+    std::cout << "Number of primes in slave: " << primes.size() << std::endl;
+    send(slave_socket, serializedPrimes.data(), serializedPrimes.size(), 0);
 
-        //handle_client(master_socket);
-    }
+    //handle_client(master_socket);
 
     closesocket(slave_socket);
     WSACleanup();
