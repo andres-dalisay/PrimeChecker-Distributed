@@ -11,7 +11,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #define USE_SLAVE true
-#define THREAD_COUNT std::thread::hardware_concurrency()
+#define THREAD_COUNT 16
 #define MAX_BUFFER_SIZE 100000000
 
 std::mutex mtx;
@@ -90,8 +90,6 @@ void handle_master(std::vector<int> master_task) {
 }
 
 int main() {
-    bool slaveOnline = USE_SLAVE;
-
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Error initializing Winsock" << std::endl;
@@ -170,7 +168,7 @@ int main() {
             continue;
         }
         SOCKET slave_socket;
-        if (slaveOnline) {
+        if (USE_SLAVE) {
             slave_socket = accept(slaveSocket, NULL, NULL);
             if (slave_socket == INVALID_SOCKET) {
                 std::cerr << "Error accepting connection" << std::endl;
@@ -200,7 +198,7 @@ int main() {
         //SPLIT TASK
         std::vector<int> master_task;
 
-        if (slaveOnline) {
+        if (USE_SLAVE) {
             std::vector<int> slave_task;
             bool flip = true;
 
@@ -240,7 +238,7 @@ int main() {
         
         int primesCount = primes.size();
         // Process the task and get the result
-        if (slaveOnline) {
+        if (USE_SLAVE) {
             std::vector<char> slaveResults(100000000);
             int bufferBytes = recv(slave_socket, slaveResults.data(), slaveResults.size(), 0);
             slaveResults.resize(bufferBytes);
