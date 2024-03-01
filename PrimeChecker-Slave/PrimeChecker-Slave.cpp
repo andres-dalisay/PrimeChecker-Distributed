@@ -123,7 +123,6 @@ int main() {
     int bytesReceived = recv(slave_socket, receivedData.data(), receivedData.size(), 0);
     if (bytesReceived == SOCKET_ERROR) {
 		std::cerr << "Error receiving data" << std::endl;
-        /*continue;*/
 	}
 
 
@@ -137,8 +136,6 @@ int main() {
     // print numPrimes
     std::cout << "Number of primes in slave: " << primes.size() << std::endl;
     send(slave_socket, serializedPrimes.data(), serializedPrimes.size(), 0);
-
-    //handle_client(master_socket);
 
     closesocket(slave_socket);
     WSACleanup();
